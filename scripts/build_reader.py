@@ -22,6 +22,19 @@ import argparse
 from pathlib import Path
 
 
+def volume_label(path, root):
+    """Derive the volume label from a chapter file's parent folder name.
+
+    Chapters grouped in a folder like “卷一·蜃楼” get the display label
+    “卷一 · 蜃楼”; chapters living directly in the source directory
+    (e.g. 楔子、尾声) have no volume label.
+    """
+    parent = path.parent.name
+    if not parent or parent == root.name:
+        return None
+    return re.sub(r"\s*·\s*", " · ", parent)
+
+
 def md_to_html(text):
     lines = text.strip().split("\n")
     paras = []
@@ -72,13 +85,13 @@ def chapter_meta(files):
 
 def build(src_dir, title, subtitle, out_path, prefix):
     folder = Path(src_dir)
-    files = sorted(folder.glob("[0-9][0-9]-*.md"))
+    files = sorted(folder.rglob("[0-9][0-9]-*.md"), key=lambda p: p.name)
     metas = chapter_meta(files)
 
     chapters = []
     for f, (title_text, _) in zip(files, metas):
         text = f.read_text(encoding="utf-8")
-        chapters.append({"title": title_text, "html": md_to_html(text)})
+        chapters.append({"title": title_text, "html": md_to_html(text), "vol": volume_label(f, folder)})
 
     data_json = json.dumps(chapters, ensure_ascii=False)
 
@@ -123,6 +136,11 @@ aside h1 small { display:block; font-size: 12px; color: var(--muted); font-weigh
 }
 .toc a:hover { background: var(--border); }
 .toc a.active { background: var(--accent); color: #fff; }
+.toc-vol {
+  margin: 14px 12px 4px; padding-bottom: 5px; border-bottom: 1px solid var(--border);
+  font-size: 12px; letter-spacing: .15em; color: var(--muted);
+}
+.toc-vol:first-child { margin-top: 2px; }
 main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .toolbar {
   display: flex; align-items: center; gap: 8px; padding: 10px 16px;
@@ -137,6 +155,10 @@ main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 #progress { font-size: 12px; color: var(--muted); }
 article { flex: 1; overflow-y: auto; padding: 40px 60px 80px; max-width: 760px; margin: 0 auto; width: 100%; }
 article hr { border: none; margin: 2.4em auto; width: 140px; height: 1px; background: var(--border); }
+.vol-tag {
+  text-align: center; font-size: 13px; letter-spacing: .35em; text-indent: .35em;
+  color: var(--muted); margin: 0 0 10px;
+}
 article h2 {
   font-size: 26px; text-align: center; margin: 0 0 36px; color: var(--accent);
   padding-bottom: 16px; border-bottom: 1px solid var(--border);
@@ -196,7 +218,7 @@ const progress = document.getElementById('progress');
 
 function render() {
   const ch = CHAPTERS[idx];
-  article.innerHTML = '<h2>' + ch.title + '</h2>' + ch.html;
+  article.innerHTML = (ch.vol ? '<div class="vol-tag">' + ch.vol + '</div>' : '') + '<h2>' + ch.title + '</h2>' + ch.html;
   progress.textContent = (idx + 1) + ' / ' + CHAPTERS.length;
   document.querySelectorAll('#toc a').forEach(a => a.classList.toggle('active', +a.dataset.i === idx));
   document.getElementById('btnPrev').disabled = idx === 0;
@@ -207,7 +229,15 @@ function render() {
 
 function buildToc() {
   const toc = document.getElementById('toc');
+  let lastVol;
   CHAPTERS.forEach((ch, i) => {
+    if (ch.vol && ch.vol !== lastVol) {
+      const v = document.createElement('div');
+      v.className = 'toc-vol';
+      v.textContent = ch.vol;
+      toc.appendChild(v);
+    }
+    lastVol = ch.vol || lastVol;
     const a = document.createElement('a');
     a.dataset.i = i;
     a.textContent = ch.title;
