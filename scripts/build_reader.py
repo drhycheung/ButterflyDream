@@ -39,12 +39,20 @@ def md_to_html(text):
     lines = text.strip().split("\n")
     paras = []
     buf = []
+    end_re = re.compile(r"^\*\*——\s*(.+?)\s*——\*\*$")
     for ln in lines:
         s = ln.rstrip()
         if not s:
             if buf:
                 paras.append("".join(buf))
                 buf = []
+            continue
+        m_end = end_re.match(s)
+        if m_end:  # 卷末/全书完结标记：独立居中显示
+            if buf:
+                paras.append("".join(buf))
+                buf = []
+            paras.append('<div class="end-mark">%s</div>' % html.escape(m_end.group(1)))
             continue
         if re.match(r"^#{1,6}\s", s):
             continue
@@ -59,7 +67,10 @@ def md_to_html(text):
         paras.append("".join(buf))
     body = []
     for p in paras:
-        body.append(f"<p>{p}</p>" if p != "<hr>" else "<hr>")
+        if p == "<hr>" or p.startswith('<div class="end-mark">'):
+            body.append(p)
+        else:
+            body.append(f"<p>{p}</p>")
     return "\n".join(body)
 
 
@@ -155,6 +166,7 @@ main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 #progress { font-size: 12px; color: var(--muted); }
 article { flex: 1; overflow-y: auto; padding: 40px 60px 80px; max-width: 760px; margin: 0 auto; width: 100%; }
 article hr { border: none; margin: 2.4em auto; width: 140px; height: 1px; background: var(--border); }
+.end-mark { text-align: center; margin-top: 3em; letter-spacing: .35em; text-indent: .35em; color: var(--muted); }
 .vol-tag {
   text-align: center; font-size: 13px; letter-spacing: .35em; text-indent: .35em;
   color: var(--muted); margin: 0 0 10px;
