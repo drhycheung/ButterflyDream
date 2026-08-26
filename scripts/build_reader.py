@@ -25,14 +25,15 @@ from pathlib import Path
 def volume_label(path, root):
     """Derive the volume label from a chapter file's parent folder name.
 
-    Chapters grouped in a folder like “卷一·蜃楼” get the display label
-    “卷一 · 蜃楼”; chapters living directly in the source directory
-    (e.g. 楔子、尾声) have no volume label.
+    Volume folders carry a sortable numeric prefix, e.g. “01-卷一·蜃楼”;
+    the prefix is stripped and the label becomes “卷一 · 蜃楼”. Chapters
+    living directly in the source directory (楔子、尾声) have no label.
     """
     parent = path.parent.name
     if not parent or parent == root.name:
         return None
-    return re.sub(r"\s*·\s*", " · ", parent)
+    name = re.sub(r"^\d+\s*[-_.]?\s*", "", parent)
+    return re.sub(r"\s*·\s*", " · ", name)
 
 
 def md_to_html(text):
