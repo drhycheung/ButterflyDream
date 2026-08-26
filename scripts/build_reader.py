@@ -88,7 +88,8 @@ def chapter_meta(files):
         if n == 0:
             title = "楔子：" + re.sub(r"^楔子[\s·:：]*", "", name)
         elif "尾声" in name:
-            title = "尾声：" + name
+            suffix = re.sub(r"^尾声[\s·:：]*", "", name)
+            title = "尾声" + ("：" + suffix if suffix else "")
         else:
             title = "第" + str(n) + "章：" + name
         out.append((title, n == highest))
